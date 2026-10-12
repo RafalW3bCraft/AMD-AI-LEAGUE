@@ -1,0 +1,10 @@
+pypdf>=4.0
+python-docx>=1.1
+openpyxl>=3.1
+Pillow>=10.0
+pytesseract>=0.3.10
+# transformers / accelerate are needed ONLY if tesseract isn't installed
+# (Florence-2 fallback). The Dockerfile installs them with --no-deps so
+# pip doesn't replace the ROCm torch build. See CONTRACT.md "pip can
+# silently replace ROCm torch with a CUDA build".
+# transformers>=4.44
