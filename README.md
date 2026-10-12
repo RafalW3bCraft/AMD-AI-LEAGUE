@@ -37,7 +37,7 @@ The challenge is graded as 10 questions × 20 points. A question scores only whe
 ## Repository layout
 
 ```
-mc3-starter-kit/
+Citation-RAG/
   starter/
     Dockerfile             # ROCm base, tesseract, our code
     app/
@@ -56,7 +56,7 @@ mc3-starter-kit/
 ## Build & test
 
 ```bash
-cd mc3-starter-kit
+cd Citation-RAG
 
 # Local end-to-end (uses OCR fixtures for the two image questions)
 python3 local_test.py
