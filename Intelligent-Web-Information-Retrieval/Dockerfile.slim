@@ -25,7 +25,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 COPY requirements.txt /app/requirements.txt
-RUN pip install --no-cache-dir aiohttp==3.10.10 beautifulsoup4==4.12.3 lxml==5.3.0 pytest==9.1.1 pytest-asyncio==1.4.0
+RUN pip install --no-cache-dir aiohttp>=3.10.10 beautifulsoup4>=4.12.3 lxml>=5.3.0 pytest>=8.0 pytest-asyncio>=0.23
 
 COPY app/app.py /app/app.py
 COPY app/__init__.py /app/app/__init__.py
