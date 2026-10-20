@@ -1,0 +1,15 @@
+# Pinned dependencies for Match 4 agent.
+# All wheels are pure-Python or AMD/ROCm-compatible — no CUDA-only builds.
+#
+# Tested against:
+#   rocm/pytorch:rocm10.0_ubuntu26.04_py3.14_pytorch_release_2.13.0
+#   (per the Match 3 starter kit contract)
+#
+# We DO NOT add torch / torchvision / torchaudio: the base image ships
+# the ROCm build and pip would silently replace it with a CUDA build
+# (lesson from Match 3 starter kits).
+
+aiohttp==3.10.10
+beautifulsoup4==4.12.3
+lxml==5.3.0
+# For the offline test path we use a pure-Python HTML parser; lxml is faster.

@@ -1,0 +1,58 @@
+# Match 4 — Docker build context exclusions.
+#
+# Keeps the production image free of caches, VCS data, tests, and
+# other noise that bloat the build context and never belong in a
+# release artifact.
+
+# VCS
+.git
+.gitignore
+.gitattributes
+
+# Python
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache
+.mypy_cache
+.ruff_cache
+.coverage
+.tox
+.venv
+venv
+env
+
+# Editor / OS
+.DS_Store
+Thumbs.db
+.idea
+.vscode
+*.swp
+*.swo
+
+# Build / dist
+build/
+dist/
+*.egg-info/
+*.whl
+*.tar.gz
+*.zip
+
+# Project artifacts
+reports/benchmark_*.json
+reports/*.tmp
+HERMES_MATCH4_*.md
+MATCH4_*.md
+*.zip
+SUBMISSION/
+
+# Tests stay in the build context so the slim Docker image can run
+# its packaging tests; the slim image is for local CI only, not the
+# final AMD release artifact.
+
+# Local notebooks (kept in repo but not needed in image)
+notebooks/.ipynb_checkpoints/
+
+# Documentation drafts
+docs/_drafts/

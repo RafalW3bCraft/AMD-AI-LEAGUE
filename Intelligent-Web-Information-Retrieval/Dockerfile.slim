@@ -1,0 +1,60 @@
+# Slim validation Dockerfile for tests that don't need ROCm torch.
+# This proves the build/test/run workflow without pulling the ~12 GB
+# ROCm base image. The AMD grader uses the full Dockerfile at the
+# repository root.
+
+FROM python:3.14-slim
+
+LABEL org.opencontainers.image.title="match4-amd-agent-slim"
+LABEL org.opencontainers.image.description="Slim validation image (no ROCm torch)"
+
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PIP_NO_CACHE_DIR=1 \
+    MATCH4_OUTPUT_DIR=/app/output \
+    MATCH4_QUERY_DEADLINE_S=28 \
+    MATCH4_OUTPUT_RESERVE_S=2 \
+    MATCH4_ALLOW_LOCAL_NETWORK=0
+
+WORKDIR /app
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        ca-certificates curl \
+        build-essential gcc \
+        libxml2-dev libxslt1-dev zlib1g-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY requirements.txt /app/requirements.txt
+RUN pip install --no-cache-dir aiohttp==3.10.10 beautifulsoup4==4.12.3 lxml==5.3.0 pytest==9.1.1 pytest-asyncio==1.4.0
+
+COPY app/app.py /app/app.py
+COPY app/__init__.py /app/app/__init__.py
+COPY app/cli.py /app/app/cli.py
+COPY app/__main__.py /app/app/__main__.py
+COPY app/server.py /app/app/server.py
+COPY app/agent /app/app/agent
+COPY tests /app/tests
+COPY pytest.ini /app/pytest.ini
+COPY notebooks /app/notebooks
+COPY reports /app/reports
+COPY Dockerfile /app/Dockerfile
+COPY README.md /app/README.md
+COPY SUBMISSION_CHECKLIST.md /app/SUBMISSION_CHECKLIST.md
+COPY contracts /app/contracts
+COPY docs /app/docs
+
+RUN mkdir -p /app/output /app/corpus
+
+# Sanity: the CLI starts.
+RUN python3 /app/app.py --help > /dev/null && echo 'app.py --help OK'
+
+# Sanity: the test suite passes.
+RUN python3 -m pytest tests/test_agent_e2e.py tests/test_extract_verify.py \
+        tests/test_fetch.py tests/test_notebook_validity.py tests/test_p0_defects.py \
+        tests/test_understand.py -q --tb=short
+
+ENTRYPOINT ["python3", "/app/app.py"]
+CMD ["--help"]
+
+HEALTHCHECK --interval=30s --timeout=10s --retries=3 \
+    CMD python3 /app/app.py --help > /dev/null || exit 1

@@ -1,0 +1,69 @@
+{
+  "total": 11,
+  "passed": 11,
+  "failed": 0,
+  "pass_rate": 1.0,
+  "exact_match_total": 10,
+  "exact_match_pass": 10,
+  "exact_match_rate": 1.0,
+  "refusal_total": 1,
+  "refusal_pass": 1,
+  "refusal_precision": 1.0,
+  "rows": [
+    {
+      "name": "two-products-tq60",
+      "status": "PASS",
+      "target_type": "exact"
+    },
+    {
+      "name": "two-products-tq40",
+      "status": "PASS",
+      "target_type": "exact"
+    },
+    {
+      "name": "jsonld-graph-tq40",
+      "status": "PASS",
+      "target_type": "exact"
+    },
+    {
+      "name": "jsonld-graph-tq60",
+      "status": "PASS",
+      "target_type": "exact"
+    },
+    {
+      "name": "navigation-finds-specs",
+      "status": "PASS",
+      "target_type": "exact"
+    },
+    {
+      "name": "contact-from-organization",
+      "status": "PASS",
+      "target_type": "exact"
+    },
+    {
+      "name": "faq-acceptedAnswer",
+      "status": "PASS",
+      "target_type": "exact"
+    },
+    {
+      "name": "redirect-resolves",
+      "status": "PASS",
+      "target_type": "exact"
+    },
+    {
+      "name": "search-empty-start-url-works",
+      "status": "PASS",
+      "target_type": "exact"
+    },
+    {
+      "name": "off-site-distraction-filtered",
+      "status": "PASS",
+      "target_type": "exact"
+    },
+    {
+      "name": "no-evidence-refuses",
+      "status": "PASS",
+      "target_type": "refusal"
+    }
+  ]
+}
