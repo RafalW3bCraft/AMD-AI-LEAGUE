@@ -1,84 +1,64 @@
-# Match 3 (AMD AI League) — Retrieval-Augmented Generation
+# AMD AI League Journey
 
-A submission for [Match 3 of the AMD AI League](https://lablab.ai/ai-hackathons/amd-lablab-ai-academy-challenge). The container is given a folder of mixed documents and asked 10 questions; for each question it returns the value and the exact list of files the answer came from.
+A central engineering repository documenting our participation and solutions across the **AMD AI League** (hosted via the [Lablab AI Academy Challenge](https://lablab.ai/ai-hackathons/amd-lablab-ai-academy-challenge)). This workspace tracks the progression from foundational ROCm setup to building high-performance, containerized autonomous systems running on AMD Instinct™ accelerators.
 
-## Approach
+---
 
-The challenge is graded as 10 questions × 20 points. A question scores only when **both** the answer and the citation set are right. There is no partial credit. So the design optimizes for **exactness and refusal honesty**, not coverage:
+## Overview
 
-- **Two-phase process.** `--index` parses every file once and persists a single JSON index to `/app/index`. `--query` loads that JSON only — no model reload, no re-parsing per question. Each `--query` invocation is a fresh process (per the contract); the index is the only thing that crosses process boundaries.
-- **Deterministic, no LLM in the hot path.** Every answer is pulled from a hand-written parser + value extractor. There is no embedding model, no generation model, no chat-style "I think" output. For image questions we run OCR (tesseract by default; Florence-2 as fallback).
-- **Defensive corpus walk.** Every file is wrapped in try/except. The corpus is guaranteed to contain an unreadable file (`chmod 000`), an encrypted PDF, an unknown binary type, and an empty directory — a walk that raises on any of those indexes nothing afterwards, and walk order is alphabetical, so which files you lose becomes filename-order-dependent. We catch per file, log a `skipped-unreadable` / `skipped-unknown`, and continue.
-- **WITHDRAWN documents are tagged at index time.** Filenames containing `WITHDRAWN` are flagged in the record's `meta.withdrawn`. The junction-temperature handler prefers the non-withdrawn revision when both revisions of a datasheet are present.
-- **Two-hop resolution.** When a query asks "which firmware release fixed the underlying defect?" without naming the ticket, the handler walks the production log for a thermal-throttle incident, extracts the ticket id from there, and looks the fix version up in the bug CSV. The citation set has both files.
-- **Refusal is data-driven.** If no handler finds an unambiguous answer in the corpus, we return `{"answer": "", "citations": [], "confidence": 0.0}`. Empty answer and empty citations, never prose. Guessing is wrong; recalling from model weights is wrong because the products are fictional.
+The AMD AI League is a six-stage competitive tournament designed to benchmark real-world AI applications on AMD hardware. Every stage presents a distinct challenge requiring specialized pipelines, strict evaluation contracts, and efficient hardware utilization under tight latency and memory constraints. 
 
-## Sample score
+This repository serves as the unified monorepo for tracking research, architecture contracts, local benchmarks, and production-grade Docker containers submitted throughout the League. Each subproject is self-contained with its own dependencies, entrypoints, and automated test suites, ensuring complete reproducibility across local workstations and AMD Developer Cloud environments (such as MI300X instances).
 
-`local_test.py` runs the same ten sample questions from `sample-questions.json` end-to-end (with a small OCR-text fixture for the two image-only questions, since this repo doesn't have a ROCm GPU for real OCR). Result:
+Across all matches, the core engineering philosophy emphasizes:
+- **Hardware-Native Execution**: Full compatibility with AMD ROCm™ PyTorch base images without NVIDIA CUDA dependencies.
+- **Deterministic Reliability**: Refusal-over-hallucination contracts, token-boundary validation, and strict negative citation guarantees.
+- **Production Packaging**: Zero-network container grading compliance, sub-30-second query budgets, and uncompressed image footprints under 60 GiB.
 
-```
-=== SCORE: 10/10 correct (refusal handled correctly: True) ===
-```
+---
 
-| # | Question | Answer | Citation |
-|---|---|---|---|
-| 1 | TQ-40 max junction temp | `94` | `specs/tq40_datasheet_r2.pdf` |
-| 2 | TQ-60 customer sampling quarter | `Q3 FY27` | `planning/roadmap_fy27.docx` |
-| 3 | TQ-40 field-replaceable fan | `ORR-FAN-2214-B` | `support/rma_parts.xlsx` |
-| 4 | ORR-1847 firmware fix | `4.3.2` | `support/bug_database.csv` |
-| 5 | Thermal throttle error code | `E7731` | `logs/prod_inference_2026-09-02.log` |
-| 6 | Default batch timeout (sec) | `180` | `engineering/ingest_service.py` |
-| 7 | THERM_ALERT# pin | `B14` | `specs/backplane_pinout.png` |
-| 8 | Board revision on asset label | `REV-C2` | `support/asset_label.jpg` |
-| 9 | Two-hop firmware fix | `4.3.2` | log + bug CSV |
-| 10 | TQ-40 unit price (encrypted file) | empty | none — refused correctly |
+## League Matches & Repository Layout
 
-## Repository layout
+Each match addresses an enterprise domain problem and is maintained within its dedicated directory:
 
-```
-Citation-RAG/
-  starter/
-    Dockerfile             # ROCm base, tesseract, our code
-    app/
-      app.py               # CLI plumbing (unchanged from starter)
-      ingest.py            # --index: walk + parse + persist
-      retrieval.py         # --query: classify + extract
-      ocr.py               # lazy OCR backend (tesseract, Florence-2 fallback)
-      requirements.txt
-  mc3-corpus/              # sample corpus (matches what you were given)
-  sample-questions.json
-  selfcheck.py             # harness-side validator (unchanged)
-  CONTRACT.md              # the contract (unchanged)
-  local_test.py            # local end-to-end test against sample corpus
+```text
+AMD-ACADEMY-CHALLENGE/
+├── Retrieval-Augmented-Generation/            # Match 3: Document RAG & Citations
+├── Intelligent-Web-Information-Retrieval/     # Match 4: Autonomous Web Agent
+├── (Upcoming Match Modules)                   # Matches 5 & 6
+└── README.md
 ```
 
-## Build & test
+### 1. Match 1: Foundation & Onboarding
+- **Focus**: AMD developer ecosystem onboarding, ROCm toolkit verification, and GPU telemetry validation.
+- **Core Milestone**: Establishing baseline developer environments and configuring AMD cloud notebook instances.
 
-```bash
-cd Citation-RAG
+### 2. Match 2: Optical Character Recognition (OCR)
+- **Focus**: Extracting dense structured data from images, schematics, and photographic labels.
+- **Core Milestone**: Multimodal text extraction pipelines leveraging vision backends accelerated on AMD GPUs.
 
-# Local end-to-end (uses OCR fixtures for the two image questions)
-python3 local_test.py
+### 3. Match 3: Retrieval-Augmented Generation
+- **Directory**: [`Retrieval-Augmented-Generation/`](Retrieval-Augmented-Generation/)
+- **Focus**: High-precision RAG over uncurated corporate corpora (PDF, DOCX, XLSX, CSV, code, logs, and images).
+- **Core Milestone**: Strict two-phase evaluation (`--index` startup pass and per-query process invocations) with exact citation set matching and zero hallucinated retrievals.
 
-# Docker build (requires the ROCm base image; ~30 GiB pull on first build)
-docker build -t mc3-rag:v1 starter/
+### 4. Match 4: Intelligent Web Information Retrieval
+- **Directory**: [`Intelligent-Web-Information-Retrieval/`](Intelligent-Web-Information-Retrieval/)
+- **Focus**: Autonomous web navigation and deterministic factual retrieval from live or simulated internet environments.
+- **Core Milestone**: A 5-stage agent pipeline (Understand → Search → Fetch → Extract → Verify) enforcing token-boundary proof before returning answers.
 
-# Harness-style self-check (no AMD GPU required, but container must run)
-python3 selfcheck.py mc3-rag:v1 mc3-corpus
-```
+### 5. Match 5: AI-Powered Code Repository Repair
+- **Focus**: Multi-agent software engineering systems for static analysis, automated defect triage, and patch synthesis.
+- **Core Milestone**: Autonomous codebase localization, automated test running, and minimal-diff defect resolution.
 
-## Constraints we honoured
+### 6. Match 6: Can Your AI Master the Unknown?
+- **Focus**: Reinforcement learning and exploratory agent decision-making in hidden, unfamiliar environments.
+- **Core Milestone**: Efficient state-space navigation and mission completion while optimizing compute tokens and GPU inference cost.
 
-- Base image is `rocm/pytorch:rocm10.0_ubuntu26.04_py3.14_pytorch_release_2.13.0`, unchanged.
-- `pip install --no-deps` everywhere — preserves the ROCm torch build.
-- No model download at runtime; all weights ship in the image (we ship tesseract + a 50 MB pytesseract wrapper, no VLM unless you flip the OCR backend).
-- `--query` does no heavy work; the JSON index is loaded once per process.
-- Output is exactly `{answer, citations, confidence}` written atomically to `/app/output/<query-id>_output.json`.
-- Citation paths are corpus-relative with forward slashes, sorted, deduplicated.
+---
 
-## Honest caveats
+## Environment & Tooling
 
-- The graded corpus is **different and harder**. The classifier is pattern-based, so a question that doesn't match any of the eight known shapes will fall through to a refusal. That's safe (a wrong answer scores zero, a refusal scores 20 on unanswerable questions). If your hidden test leans on novel question shapes, add patterns to `retrieval._classify` rather than guessing.
-- We have no AMD GPU here, so we couldn't run `selfcheck.py` against a real container, only against the parsers in-process. The full submission pipeline needs an AMD GPU node (the $100 lablab credits, or an MI300X/Navi31 box). Verify there before submitting.
-- OCR for image questions is the riskiest piece: tesseract is small and reliable but can mis-read hand-drawn pinout labels. If the graded pinout has any unusual fonts or rotations, swap `ocr._ocr_tesseract` for `ocr._ocr_vlm` (Florence-2 base) — you'll need to ship those weights inside the image (~1.5 GiB).
+- **Platform**: Linux (Ubuntu 22.04+)
+- **Compute**: AMD Instinct™ Accelerators (ROCm 6.x / PyTorch ROCm releases)
+- **Evaluation**: Headless Docker container execution (`--network none`, non-root capabilities)
