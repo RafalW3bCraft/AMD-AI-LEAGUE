@@ -138,8 +138,17 @@ class Fetcher:
         # family we will actually connect to.)
         resolver = ThreadedResolver()
 
-        def _resolve(host: str, port: int = 0, *args, **kwargs):
+        async def _resolve(host: str, port: int = 0, *args, **kwargs):
+            # aiohttp ≥3.10 calls `await self._resolver.resolve(...)` and then
+            # passes the result through `_convert_hosts_to_addr_infos()`, which
+            # expects ``list[ResolveResult]`` — NOT the legacy
+            # ``socket.getaddrinfo`` 5-tuple format. Returning the raw
+            # getaddrinfo tuples crashes aiohttp with
+            # ``TypeError: tuple indices must be integers or slices, not str``
+            # inside `_convert_hosts_to_addr_infos` because it does
+            # ``hinfo["host"]`` on a tuple.
             import socket as _socket
+            from aiohttp.abc import ResolveResult
             infos = _socket.getaddrinfo(host, port)
             # Re-validate every resolved IP against the safety blocklist
             # at the moment we are about to connect. If ANY resolves to
@@ -147,7 +156,15 @@ class Fetcher:
             # resolution — aiohttp will surface this as a connection
             # error rather than silently connecting to the wrong IP.
             from .safety import _ip_in_blocked
-            for fam, *_rest, sockaddr in infos:
+            hosts: list[ResolveResult] = []
+            for info in infos:
+                # getaddrinfo returns 5-tuples:
+                #   (family, type, proto, canonname, sockaddr)
+                if not isinstance(info, tuple) or len(info) < 5:
+                    continue
+                family, _type, proto, _canon, sockaddr = info
+                if not sockaddr:
+                    continue
                 addr = sockaddr[0]
                 if not isinstance(addr, str):
                     continue
@@ -155,7 +172,19 @@ class Fetcher:
                     raise OSError(
                         f"refused to resolve {host} → blocked address {addr}"
                     )
-            return infos
+                resolved_port = (
+                    sockaddr[1] if len(sockaddr) > 1 and isinstance(sockaddr[1], int)
+                    else port
+                )
+                hosts.append(ResolveResult(
+                    hostname=host,
+                    host=addr,
+                    port=resolved_port,
+                    family=family,
+                    proto=proto,
+                    flags=0,
+                ))
+            return hosts
 
         try:
             resolver.resolve = _resolve  # type: ignore[method-assign]

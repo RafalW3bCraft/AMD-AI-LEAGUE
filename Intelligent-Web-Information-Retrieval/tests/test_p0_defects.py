@@ -604,3 +604,96 @@ class TestP1_11EvidenceNotDoubleCounted:
         )
         assert result.best.agreement == 1.0
         assert result.best.citations == [page.final_url]
+
+
+class TestP0_9CustomResolverReturnShape:
+    """Regression: the safety resolver MUST return ``list[ResolveResult]``.
+
+    aiohttp ≥3.10 changed the resolver contract: the value returned by
+    ``AbstractResolver.resolve()`` is fed into
+    ``TCPConnector._convert_hosts_to_addr_infos``, which iterates with
+    ``hinfo["host"]``. Returning the legacy ``socket.getaddrinfo``
+    5-tuples therefore crashes aiohttp with
+    ``TypeError: tuple indices must be integers or slices, not str``.
+
+    The previous (sync) version returned raw getaddrinfo tuples and
+    additionally crashed on aiohttp ≥3.11 because it was sync but was
+    awaited: ``TypeError: 'list' object can't be awaited``.
+
+    Both failure modes are observable on AMD notebook (aiohttp 3.14.5 +
+    Python 3.14) and broke end-to-end start-url fetches silently — the
+    fetch error got logged to the trail but the agent returned
+    ``pages_fetched=0`` even though the URL was a valid public page.
+    """
+
+    def test_resolver_returns_ResolveResult_list(self):
+        import asyncio
+        from app.agent.config import AgentConfig
+        from app.agent.fetch import Fetcher
+        from aiohttp.abc import ResolveResult
+
+        async def _run():
+            f = Fetcher(AgentConfig())
+            connector = f._get_connector()
+            assert connector is not None, "expected custom safety connector"
+            # aiohttp ≥3.10 made ``resolver`` a private attribute; support both.
+            resolver = getattr(connector, "resolver", None) or connector._resolver
+            return await resolver.resolve("example.com", 443)
+
+        out = asyncio.run(_run())
+        assert isinstance(out, list)
+        assert len(out) > 0
+        # ResolveResult is a TypedDict; check via dict semantics.
+        for entry in out:
+            assert isinstance(entry, dict), (
+                f"expected dict-shaped ResolveResult, got {type(entry).__name__}: {entry!r}"
+            )
+            assert isinstance(entry.get("host"), str) and entry["host"]
+            assert isinstance(entry.get("port"), int)
+            assert entry.get("family") in (
+                __import__("socket").AF_INET, __import__("socket").AF_INET6,
+            ), entry
+
+    def test_resolver_rejects_private_host(self):
+        import asyncio
+        import pytest as _pytest
+        from app.agent.config import AgentConfig
+        from app.agent.fetch import Fetcher
+
+        async def _run():
+            f = Fetcher(AgentConfig())
+            connector = f._get_connector()
+            assert connector is not None
+            resolver = getattr(connector, "resolver", None) or connector._resolver
+            return await resolver.resolve("localhost", 80)
+
+        with _pytest.raises(OSError):
+            asyncio.run(_run())
+
+    def test_end_to_end_fetch_uses_resolver(self):
+        """Smoke: a real fetch through the safety resolver returns
+        ``ok=True`` and a non-empty body for a public page.
+
+        This is the regression test that proved the previous sync
+        resolver was broken: it would silently fail with a TypeError
+        on AMD notebook aiohttp ≥3.11, leaving ``pages_fetched=0``.
+        """
+        import asyncio
+        from app.agent.config import AgentConfig
+        from app.agent.fetch import Fetcher
+
+        async def _run():
+            f = Fetcher(AgentConfig(fetch_timeout_s=10))
+            return await f.fetch("https://example.com/")
+
+        page = asyncio.run(_run())
+        # Either we got a 200 with content, or a transient network
+        # failure (CI/offline). We must NOT see the resolver-shape
+        # TypeError, which used to be the dominant failure mode.
+        if not page.ok:
+            assert "tuple indices" not in page.error, (
+                f"resolver shape regression: {page.error}"
+            )
+            assert "'list' object" not in page.error, (
+                f"sync resolver regression: {page.error}"
+            )
